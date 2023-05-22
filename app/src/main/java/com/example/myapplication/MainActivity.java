@@ -4,6 +4,7 @@ import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultCallback;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -22,7 +23,7 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_CAMERA_PERMISSION = 1;
     private static final int REQUEST_READ_EXTERNAL_STORAGE_PERMISSION = 2;
     private ActivityResultLauncher<Intent> cameraLauncher;
-    private ActivityResultLauncher<String> galleryLauncher; // Добавлено поле galleryLauncher
+    private ActivityResultLauncher<Intent> galleryLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -35,8 +36,8 @@ public class MainActivity extends AppCompatActivity {
         cameraButton.setOnClickListener(v -> openCamera());
         galleryButton.setOnClickListener(v -> openGallery());
 
-        cameraLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), result -> handleCameraResult(result));
-        galleryLauncher = registerForActivityResult(new ActivityResultContracts.GetContent(), result -> handleGalleryResult(result));
+        cameraLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::handleCameraResult);
+        galleryLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::handleGalleryResult);
     }
 
     private void openCamera() {
@@ -59,7 +60,35 @@ public class MainActivity extends AppCompatActivity {
         CameraHandler.handleCameraResult(this, result);
     }
 
-    private void handleGalleryResult(Uri result) {
-        GalleryHandler.handleGalleryResult(this, result);
+    private void handleGalleryResult(ActivityResult result) {
+        if (result.getResultCode() == RESULT_OK) {
+            Uri imageUri = result.getData().getData();
+            GalleryHandler.handleGalleryResult(this, imageUri);
+        } else {
+            Toast.makeText(this, "Не удалось выбрать изображение из галереи", Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        switch (requestCode) {
+            case REQUEST_CAMERA_PERMISSION: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    CameraHandler.openCamera(this, cameraLauncher);
+                } else {
+                    Toast.makeText(this, "Отсутствуют разрешения для использования камеры", Toast.LENGTH_SHORT).show();
+                }
+                break;
+            }
+            case REQUEST_READ_EXTERNAL_STORAGE_PERMISSION: {
+                if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                    GalleryHandler.openGallery(this, galleryLauncher);
+                } else {
+                    Toast.makeText(this, "Отсутствуют разрешения для чтения изображений", Toast.LENGTH_SHORT).show();
+                }
+                break;
+            }
+        }
     }
 }
