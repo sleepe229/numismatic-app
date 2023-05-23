@@ -5,6 +5,6 @@ import org.tensorflow.lite.support.label.Category;
 public class MyRecognitionListener implements CustomRecognitionListener {
     @Override
     public void onResult(Category category) {
-        //реализация обработки результата распознавания
+        // Implementation of the recognition result handling
     }
 }

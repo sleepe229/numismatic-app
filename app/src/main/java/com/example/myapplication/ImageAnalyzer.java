@@ -8,10 +8,7 @@ import android.net.Uri;
 import android.os.Build;
 import android.util.Log;
 
-import androidx.annotation.NonNull;
 import androidx.annotation.RequiresApi;
-import androidx.camera.core.ImageAnalysis;
-import androidx.camera.core.ImageProxy;
 
 import org.tensorflow.lite.Interpreter;
 import org.tensorflow.lite.support.image.TensorImage;
@@ -26,7 +23,7 @@ import java.nio.channels.FileChannel;
 import java.util.ArrayList;
 import java.util.List;
 
-public class ImageAnalyzer implements ImageAnalysis.Analyzer {
+public class ImageAnalyzer {
     private Context context;
     private CustomRecognitionListener listener;
     private Interpreter interpreter;
@@ -36,8 +33,7 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
         this.context = context;
         this.listener = new MyRecognitionListener();
         try {
-            Interpreter.Options options = new Interpreter.Options();
-            this.interpreter = new Interpreter(loadModelFile(context), options);
+            this.interpreter = new Interpreter(loadModelFile(context));
 
             // Определение размера выходного буфера на основе модели
             int[] outputShape = interpreter.getOutputTensor(0).shape();
@@ -59,7 +55,6 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     public void analyzeImage(Uri imageUri) {
-        // Получение Bitmap из URI изображения
         Bitmap imageBitmap = getBitmapFromUri(imageUri);
 
         if (imageBitmap != null) {
@@ -71,24 +66,22 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
 
     @RequiresApi(api = Build.VERSION_CODES.N)
     public void analyzeBitmap(Bitmap imageBitmap) {
-        // Преобразование Bitmap в TensorImage
         TensorImage tensorImage = TensorImage.fromBitmap(imageBitmap);
+        tensorImage = preprocessImage(tensorImage);
 
-        // Создание буфера для выходных данных модели
-        TensorBuffer outputBuffer = TensorBuffer.createFixedSize(interpreter.getOutputTensor(0).shape(), interpreter.getOutputTensor(0).dataType());
         interpreter.run(tensorImage.getBuffer(), outputBuffer.getBuffer());
 
-        // Обработка выходных данных модели
         List<Category> sortedOutputs = new ArrayList<>();
-        float[] probabilities = outputBuffer.getFloatArray();
-        for (int i = 0; i < probabilities.length; i++) {
-            Category category = new Category(String.valueOf(i), probabilities[i]);
+        float[] outputData = outputBuffer.getFloatArray();
+        for (int i = 0; i < outputData.length; i++) {
+            Category category = new Category(String.valueOf(i), outputData[i]);
             sortedOutputs.add(category);
         }
 
-        // Сортировка по вероятности и передача результата в listener
         sortedOutputs.sort((item1, item2) -> Float.compare(item1.getScore(), item2.getScore()));
-        listener.onResult(sortedOutputs.get(sortedOutputs.size() - 1));
+        Category resultCategory = sortedOutputs.get(sortedOutputs.size() - 1);
+        Log.d("ImageAnalyzer", "Recognition result: " + resultCategory.getLabel() + ", Score: " + resultCategory.getScore());
+        listener.onResult(resultCategory);
     }
 
     private Bitmap getBitmapFromUri(Uri imageUri) {
@@ -101,8 +94,19 @@ public class ImageAnalyzer implements ImageAnalysis.Analyzer {
         }
     }
 
-    @Override
-    public void analyze(@NonNull ImageProxy image) {
-        //useless
+    private TensorImage preprocessImage(TensorImage image) {
+        int targetWidth = 300;
+        int targetHeight = 300;
+        Bitmap.Config targetConfig = Bitmap.Config.ARGB_8888;
+        Bitmap resizedBitmap = Bitmap.createScaledBitmap(image.getBitmap(), targetWidth, targetHeight, true);
+
+        if (resizedBitmap.getConfig() != targetConfig) {
+            Bitmap argbBitmap = resizedBitmap.copy(targetConfig, true);
+            return TensorImage.fromBitmap(argbBitmap);
+        } else {
+            return TensorImage.fromBitmap(resizedBitmap);
+        }
     }
+
 }
+
