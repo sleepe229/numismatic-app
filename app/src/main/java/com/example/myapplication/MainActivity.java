@@ -1,21 +1,21 @@
 package com.example.myapplication;
 
-import androidx.activity.result.ActivityResult;
-import androidx.activity.result.ActivityResultCallback;
-import androidx.activity.result.ActivityResultLauncher;
-import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
-
 import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.Toast;
+
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.annotation.RequiresApi;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
 public class MainActivity extends AppCompatActivity {
     private Button cameraButton;
@@ -24,7 +24,9 @@ public class MainActivity extends AppCompatActivity {
     private static final int REQUEST_READ_EXTERNAL_STORAGE_PERMISSION = 2;
     private ActivityResultLauncher<Intent> cameraLauncher;
     private ActivityResultLauncher<Intent> galleryLauncher;
+    private ImageAnalyzer imageAnalyzer;
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -38,6 +40,8 @@ public class MainActivity extends AppCompatActivity {
 
         cameraLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::handleCameraResult);
         galleryLauncher = registerForActivityResult(new ActivityResultContracts.StartActivityForResult(), this::handleGalleryResult);
+
+        imageAnalyzer = new ImageAnalyzer(this);
     }
 
     private void openCamera() {
@@ -56,17 +60,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     private void handleCameraResult(ActivityResult result) {
-        CameraHandler.handleCameraResult(this, result);
+        CameraHandler.handleCameraResult(this, result, imageAnalyzer);
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.N)
     private void handleGalleryResult(ActivityResult result) {
-        if (result.getResultCode() == RESULT_OK) {
-            Uri imageUri = result.getData().getData();
-            GalleryHandler.handleGalleryResult(this, imageUri);
-        } else {
-            Toast.makeText(this, "Не удалось выбрать изображение из галереи", Toast.LENGTH_SHORT).show();
-        }
+        GalleryHandler.handleGalleryResult(this, result, imageAnalyzer);
     }
 
     @Override

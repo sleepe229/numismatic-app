@@ -5,11 +5,13 @@ import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.net.Uri;
+import android.os.Build;
 import android.provider.MediaStore;
 import android.widget.Toast;
 
 import androidx.activity.result.ActivityResult;
 import androidx.activity.result.ActivityResultLauncher;
+import androidx.annotation.RequiresApi;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
@@ -26,15 +28,17 @@ public class CameraHandler {
         }
     }
 
-    public static void handleCameraResult(AppCompatActivity activity, ActivityResult result) {
+    @RequiresApi(api = Build.VERSION_CODES.N)
+    public static void handleCameraResult(AppCompatActivity activity, ActivityResult result, ImageAnalyzer imageAnalyzer) {
         if (result.getResultCode() == AppCompatActivity.RESULT_OK) {
             Intent data = result.getData();
             if (data != null && data.hasExtra(MediaStore.EXTRA_OUTPUT)) {
                 Uri imageUri = data.getParcelableExtra(MediaStore.EXTRA_OUTPUT);
-                // Выполнение необходимых действий с URI изображения
+                imageAnalyzer.analyzeImage(imageUri);
             } else if (data != null && data.hasExtra("data")) {
                 Bitmap imageBitmap = (Bitmap) data.getExtras().get("data");
                 // Выполнение необходимых действий с битмапом изображения
+                imageAnalyzer.analyzeBitmap(imageBitmap);
             }
         } else if (result.getResultCode() == AppCompatActivity.RESULT_CANCELED) {
             Toast.makeText(activity, "Съемка отменена", Toast.LENGTH_SHORT).show();
